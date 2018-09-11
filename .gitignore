@@ -6,3 +6,4 @@ lib/binding/
 package-lock.json
 npm-debug.log
 *.tfrecords
+__pycache__/

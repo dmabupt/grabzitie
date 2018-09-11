@@ -38,11 +38,11 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
                            
 import zitie
-import tf_parameter_mgr
-import monitor_cb
+# import tf_parameter_mgr
+# import monitor_cb
 
-max_steps=tf_parameter_mgr.getMaxSteps()
-test_interval=tf_parameter_mgr.getTestInterval()
+max_steps=1000
+test_interval=15
 
 #tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -82,8 +82,8 @@ def train():
     
     if is_chief:
       log_dir = os.path.join(FLAGS.train_dir, 'log')
-      monitor = monitor_cb.CMonitor(log_dir, tf_parameter_mgr.getTestInterval(), tf_parameter_mgr.getMaxSteps())
-      summaryWriter = tf.summary.FileWriter(log_dir)
+      # monitor = monitor_cb.CMonitor(log_dir, tf_parameter_mgr.getTestInterval(), tf_parameter_mgr.getMaxSteps())
+      # summaryWriter = tf.summary.FileWriter(log_dir)
     with tf.device(tf.train.replica_device_setter(
         worker_device="/job:worker/task:%d" % FLAGS.task_id,
         cluster=cluster)):
@@ -141,11 +141,11 @@ def train():
                 self._trigger = True
                 self._next_trigger_step += test_interval
 
-            summary = run_values.results.get('summary', None)
-            if summary is not None:
-                summaryWriter.add_summary(summary, gs)
-                summary = run_context.session.run(test_summaries, feed_dict = {is_training:False})
-                summaryWriter.add_summary(summary, gs)
+            # summary = run_values.results.get('summary', None)
+            # if summary is not None:
+                # summaryWriter.add_summary(summary, gs)
+                # summary = run_context.session.run(test_summaries, feed_dict = {is_training:False})
+                # summaryWriter.add_summary(summary, gs)
 
     hooks = [tf.train.StopAtStepHook(last_step=tf_parameter_mgr.getMaxSteps()),
                tf.train.NanTensorHook(loss)]
