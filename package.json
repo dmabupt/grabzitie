@@ -1,8 +1,8 @@
 {
-  "name": "getimg",
-  "version": "1.0.0",
+  "name": "grabzitie",
+  "version": "1.0.1",
   "description": "",
-  "main": "getImg.js",
+  "main": "idnex.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

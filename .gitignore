@@ -1,5 +1,6 @@
 node_modules/
 build/
+zitie/
 lib/binding/
 package-lock.json
 npm-debug.log
