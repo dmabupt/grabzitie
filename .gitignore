@@ -1,6 +1,8 @@
 node_modules/
 build/
 zitie/
+zitie-val/
 lib/binding/
 package-lock.json
 npm-debug.log
+*.tfrecords
