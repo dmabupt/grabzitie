@@ -28,7 +28,7 @@ tf.app.flags.DEFINE_string('worker_hosts', '',
 tf.app.flags.DEFINE_integer('task_id', 0, 'Task ID of the worker/replica running the training.')
 
 
-tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', '/tmp/zitie_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 #tf.app.flags.DEFINE_integer('max_steps', 1000000,
@@ -37,7 +37,7 @@ tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
                            
-import cifar10
+import zitie
 import tf_parameter_mgr
 import monitor_cb
 
@@ -91,19 +91,19 @@ def train():
 
         # Get images and labels for CIFAR-10.
         is_training = tf.placeholder(dtype=bool,shape=())
-        i_train, l_train = cifar10.distorted_inputs()
-        i_test, l_test = cifar10.inputs(True)
+        i_train, l_train = zitie.inputs(False)
+        i_test, l_test = zitie.inputs(True)
         images, labels = tf.cond(is_training, lambda:(i_train, l_train), lambda:(i_test, l_test))
-        #images, labels = cifar10.distorted_inputs()
+        #images, labels = zitie.distorted_inputs()
 
         # Build a Graph that computes the logits predictions from the
         # inference model.
-        #logits = cifar10.inference(images
-        logits = cifar10.inference(images)
+        #logits = zitie.inference(images
+        logits = zitie.inference(images)
         # Calculate loss.
-        loss = cifar10.loss(logits, labels)
-        accuracy = cifar10.accuracy(logits, labels)
-        train_op = cifar10.train(loss, global_step)
+        loss = zitie.loss(logits, labels)
+        accuracy = zitie.accuracy(logits, labels)
+        train_op = zitie.train(loss, global_step)
         
         if is_chief:
           graph = tf.get_default_graph()

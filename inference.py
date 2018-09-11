@@ -33,10 +33,10 @@ tf.app.flags.DEFINE_float('prob_thresh', 0.5,
 tf.app.flags.DEFINE_bool('validate', False,
                            """Evaluating this model with validation dataset or not.""")                                                      
                            
-import cifar10
+import zitie
 
 BATCH_SIZE = 128
-IMAGE_SIZE = 24
+IMAGE_SIZE = 256
 
 
 def image_input_file():
@@ -47,43 +47,26 @@ def image_input_file():
   filename_queue = tf.train.string_input_producer(imagefiles, num_epochs=1, shuffle=False)
   reader = tf.WholeFileReader()
   key, value = reader.read(filename_queue)
-  input_image = tf.image.decode_image(value, channels=3)
+  input_image = tf.image.decode_image(value, channels=1)
   return key, input_image, tf.constant(-1, dtype=tf.int32)
-
-def image_input_bin(filename_queue):
-  image_bytes = 32 * 32 * 3
-  label_bytes = 1
-  record_bytes = label_bytes + image_bytes
-  reader = tf.FixedLengthRecordReader(record_bytes=record_bytes)
-  key, value = reader.read(filename_queue)
-  record_bytes = tf.decode_raw(value, tf.uint8)
-  label = tf.cast(tf.reshape(tf.strided_slice(record_bytes, [0], [label_bytes]), []), tf.int32)
-  depth_major = tf.reshape(
-        tf.strided_slice(record_bytes, [label_bytes], [label_bytes + image_bytes]),
-        [3, 32, 32])
-  input_image = tf.transpose(depth_major, [1, 2, 0])
-  return key, input_image, label
 
 def image_input_tfrecord(filename_queue):
   reader = tf.TFRecordReader()
   key, value = reader.read(filename_queue)
   features = tf.parse_single_example(value,
                                      features={
-                                         'label': tf.FixedLenFeature([], tf.int64),
                                          'image_raw' : tf.FixedLenFeature([], tf.string),
+                                         'label': tf.FixedLenFeature([], tf.int64)
                                      })
   label = tf.cast(features['label'], tf.int32)
   image = tf.decode_raw(features['image_raw'], tf.uint8)
-  input_image = tf.reshape(image, [32,32,3])
+  input_image = tf.reshape(image, [IMAGE_SIZE, IMAGE_SIZE, 1])
   return key, input_image, label
 
 def image_input_dataset():
   datafiles = tf_parameter_mgr.getValData()
   filename_queue = tf.train.string_input_producer(datafiles, num_epochs=1, shuffle=False)
-  if datafiles[0].endswith('.bin'):
-    return image_input_bin(filename_queue)
-  else:
-    return image_input_tfrecord(filename_queue)
+  return image_input_tfrecord(filename_queue)
 
 def predict():
   if FLAGS.validate:
@@ -91,16 +74,16 @@ def predict():
   else:
     input_filename, input_image, input_label = image_input_file()
 
-  input_image = tf.image.resize_image_with_crop_or_pad(input_image, IMAGE_SIZE, IMAGE_SIZE)
+  # input_image = tf.image.resize_image_with_crop_or_pad(input_image, IMAGE_SIZE, IMAGE_SIZE)
   input_image = tf.image.per_image_standardization(input_image)
-  input_image = tf.reshape(input_image, shape=[IMAGE_SIZE,IMAGE_SIZE,3])
+  # input_image = tf.reshape(input_image, shape=[IMAGE_SIZE,IMAGE_SIZE,3])
   filename_batch, image_batch, label_batch = tf.train.batch([input_filename, input_image, input_label],
                                             batch_size=BATCH_SIZE,
                                             allow_smaller_final_batch=True)
-  logits = cifar10.inference(image_batch)
+  logits = zitie.inference(image_batch)
   proba = tf.nn.softmax(logits)
 
-  prediction = np.ndarray([0,proba.get_shape().as_list()[1]], np.float32)
+  prediction = np.ndarray([0, proba.get_shape().as_list()[1]], np.float32)
   imagenames = np.ndarray([0], dtype=np.object)
   true_label = np.ndarray([0], dtype=np.object)
 
