@@ -1,20 +1,3 @@
-# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
-"""Routine for decoding the CIFAR-10 binary file format."""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -23,87 +6,43 @@ import os
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
-# import tf_parameter_mgr
+import tf_parameter_mgr
 
-# Process images of this size. Note that this differs from the original CIFAR
-# image size of 32 x 32. If one alters this number, then the entire model
-# architecture will change and any model would need to be retrained.
 IMAGE_SIZE = 256
 
-# Global constants describing the CIFAR-10 data set.
 NUM_CLASSES = 10
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 3235
-NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 1053
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1548
+NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 398
 
 
 def read_zitie(filename_queue):
-  """Reads and parses examples from CIFAR10 data files.
-
-  Recommendation: if you want N-way read parallelism, call this function
-  N times.  This will give you N independent Readers reading different
-  files & positions within those files, which will give better mixing of
-  examples.
-
-  Args:
-    filename_queue: A queue of strings with the filenames to read from.
-
-  Returns:
-    An object representing a single example, with the following fields:
-      height: number of rows in the result (32)
-      width: number of columns in the result (32)
-      depth: number of color channels in the result (3)
-      key: a scalar string Tensor describing the filename & record number
-        for this example.
-      label: an int32 Tensor with the label in the range 0..9.
-      uint8image: a [height, width, depth] uint8 Tensor with the image data
-  """
 
   class ZITIERecord(object):
     pass
   result = ZITIERecord()
 
-  # Dimensions of the images in the CIFAR-10 dataset.
-  # See http://www.cs.toronto.edu/~kriz/cifar.html for a description of the
-  # input format.
-  label_bytes = 1  # 2 for CIFAR-100
+  label_bytes = 1 
   result.height = IMAGE_SIZE
   result.width = IMAGE_SIZE
   result.depth = 1
-  image_bytes = result.height * result.width * result.depth
 
   reader = tf.TFRecordReader()
   result.key, value = reader.read(filename_queue)
-  features = tf.parse_single_example(value,
-                                     features={
-                                       'image_raw' : tf.FixedLenFeature([], tf.string),
-                                       'label': tf.FixedLenFeature([], tf.int64)
+  features = tf.parse_single_example(value, features={
+                                      'label': tf.FixedLenFeature([], tf.int64),
+                                      'image_raw' : tf.FixedLenFeature([], tf.string)
                                      })
   result.label = tf.cast(features['label'], tf.int32)
   result.label = tf.expand_dims(result.label, 0)
   image = tf.decode_raw(features['image_raw'], tf.uint8)
-  result.uint8image = tf.reshape(image, [result.height, result.width, result.depth])
-
+  image = tf.reshape(image, [result.height, result.width, result.depth])
+  # image = tf.expand_dims(image, -1)
+  result.uint8image = image
   return result
 
 
 def _generate_image_and_label_batch(image, label, min_queue_examples,
                                     batch_size, shuffle):
-  """Construct a queued batch of images and labels.
-
-  Args:
-    image: 3-D Tensor of [height, width, 3] of type.float32.
-    label: 1-D Tensor of type.int32
-    min_queue_examples: int32, minimum number of samples to retain
-      in the queue that provides of batches of examples.
-    batch_size: Number of images per batch.
-    shuffle: boolean indicating whether to use a shuffling queue.
-
-  Returns:
-    images: Images. 4D tensor of [batch_size, height, width, 3] size.
-    labels: Labels. 1D tensor of [batch_size] size.
-  """
-  # Create a queue that shuffles the examples, and then
-  # read 'batch_size' images + labels from the example queue.
   num_preprocess_threads = 16
   if shuffle:
     images, label_batch = tf.train.shuffle_batch(
@@ -125,22 +64,11 @@ def _generate_image_and_label_batch(image, label, min_queue_examples,
   return images, tf.reshape(label_batch, [batch_size])
 
 def inputs(eval_data, data_dir, batch_size):
-  """Construct input for CIFAR evaluation using the Reader ops.
-
-  Args:
-    eval_data: bool, indicating if one should use the train or eval data set.
-    data_dir: Path to the CIFAR-10 data directory.
-    batch_size: Number of images per batch.
-
-  Returns:
-    images: Images. 4D tensor of [batch_size, IMAGE_SIZE, IMAGE_SIZE, 1] size.
-    labels: Labels. 1D tensor of [batch_size] size.
-  """
   if not eval_data:
-    filenames = "training.tfrecords"
+    filenames = tf_parameter_mgr.getTrainData()
     num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
   else:
-    filenames = "validation.tfrecords"
+    filenames = tf_parameter_mgr.getTestData()
     num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
 
   for f in filenames:
@@ -153,7 +81,6 @@ def inputs(eval_data, data_dir, batch_size):
   # Read examples from files in the filename queue.
   read_input = read_zitie(filename_queue)
   reshaped_image = tf.cast(read_input.uint8image, tf.float32)
-
   height = IMAGE_SIZE
   width = IMAGE_SIZE
 
@@ -163,9 +90,6 @@ def inputs(eval_data, data_dir, batch_size):
 
   # Subtract off the mean and divide by the variance of the pixels.
   float_image = tf.image.per_image_standardization(reshaped_image)
-
-  # Set the shapes of tensors.
-  float_image.set_shape([height, width, 1])
   read_input.label.set_shape([1])
 
   # Ensure that the random shuffling has good mixing properties.
@@ -176,4 +100,4 @@ def inputs(eval_data, data_dir, batch_size):
   # Generate a batch of images and labels by building up a queue of examples.
   return _generate_image_and_label_batch(float_image, read_input.label,
                                          min_queue_examples, batch_size,
-                                         shuffle=False)
+                                         shuffle=True)

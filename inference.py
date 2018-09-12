@@ -42,12 +42,15 @@ IMAGE_SIZE = 256
 def image_input_file():
   input_dir = os.path.expanduser(FLAGS.input_dir)
   imagefiles = glob.iglob(input_dir + '/*.*')
-  imagefiles = [im_f for im_f in imagefiles
-                if im_f.endswith(".jpg") or im_f.endswith(".jpeg") or im_f.endswith(".png")]
+  imagefiles = [im_f for im_f in imagefiles if im_f.endswith(".png")]
   filename_queue = tf.train.string_input_producer(imagefiles, num_epochs=1, shuffle=False)
   reader = tf.WholeFileReader()
   key, value = reader.read(filename_queue)
-  input_image = tf.image.decode_image(value, channels=1)
+  input_image = tf.image.decode_png(value, channels=1)
+  input_image = tf.image.resize_images(input_image, [IMAGE_SIZE, IMAGE_SIZE])
+  input_image = tf.where(input_image>10, tf.ones_like(input_image), tf.zeros_like(input_image))
+  input_image = tf.cast(input_image, tf.uint8)
+  input_image = tf.reshape(input_image, [IMAGE_SIZE, IMAGE_SIZE, 1])
   return key, input_image, tf.constant(-1, dtype=tf.int32)
 
 def image_input_tfrecord(filename_queue):
@@ -55,8 +58,8 @@ def image_input_tfrecord(filename_queue):
   key, value = reader.read(filename_queue)
   features = tf.parse_single_example(value,
                                      features={
-                                         'image_raw' : tf.FixedLenFeature([], tf.string),
-                                         'label': tf.FixedLenFeature([], tf.int64)
+                                      'label': tf.FixedLenFeature([], tf.int64),
+                                      'image_raw' : tf.FixedLenFeature([], tf.string)
                                      })
   label = tf.cast(features['label'], tf.int32)
   image = tf.decode_raw(features['image_raw'], tf.uint8)

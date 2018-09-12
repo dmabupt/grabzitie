@@ -38,11 +38,11 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
                            
 import zitie
-# import tf_parameter_mgr
-# import monitor_cb
+import tf_parameter_mgr
+import monitor_cb
 
-max_steps=1000
-test_interval=15
+max_steps=tf_parameter_mgr.getMaxSteps()
+test_interval=tf_parameter_mgr.getTestInterval()
 
 #tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -82,8 +82,8 @@ def train():
     
     if is_chief:
       log_dir = os.path.join(FLAGS.train_dir, 'log')
-      # monitor = monitor_cb.CMonitor(log_dir, tf_parameter_mgr.getTestInterval(), tf_parameter_mgr.getMaxSteps())
-      # summaryWriter = tf.summary.FileWriter(log_dir)
+      monitor = monitor_cb.CMonitor(log_dir, tf_parameter_mgr.getTestInterval(), tf_parameter_mgr.getMaxSteps())
+      summaryWriter = tf.summary.FileWriter(log_dir)
     with tf.device(tf.train.replica_device_setter(
         worker_device="/job:worker/task:%d" % FLAGS.task_id,
         cluster=cluster)):
@@ -103,11 +103,11 @@ def train():
         # Calculate loss.
         loss = zitie.loss(logits, labels)
         accuracy = zitie.accuracy(logits, labels)
-        train_op = zitie.train(loss, global_step)
+        train_op = zitie._train(loss, global_step)
         
         if is_chief:
           graph = tf.get_default_graph()
-          for layer in ['conv1', 'conv2', 'local3', 'local4']:
+          for layer in ['conv1', 'conv2', 'conv3', 'local3', 'local4']:
             monitor.SummaryHist("weight", graph.get_tensor_by_name(layer+'/weights:0'), layer)
             monitor.SummaryHist("bias", graph.get_tensor_by_name(layer+'/biases:0'), layer)
             monitor.SummaryHist("activation", graph.get_tensor_by_name(layer+'/'+layer+':0'), layer)
@@ -141,11 +141,11 @@ def train():
                 self._trigger = True
                 self._next_trigger_step += test_interval
 
-            # summary = run_values.results.get('summary', None)
-            # if summary is not None:
-                # summaryWriter.add_summary(summary, gs)
-                # summary = run_context.session.run(test_summaries, feed_dict = {is_training:False})
-                # summaryWriter.add_summary(summary, gs)
+            summary = run_values.results.get('summary', None)
+            if summary is not None:
+                summaryWriter.add_summary(summary, gs)
+                summary = run_context.session.run(test_summaries, feed_dict = {is_training:False})
+                summaryWriter.add_summary(summary, gs)
 
     hooks = [tf.train.StopAtStepHook(last_step=tf_parameter_mgr.getMaxSteps()),
                tf.train.NanTensorHook(loss)]
