@@ -1,6 +1,7 @@
 const http = require('http');
 var fs = require('fs');
 const puppeteer = require('puppeteer');
+const tfrecord = require('tfrecord');
 
 const tagDivG = /<div class="imgInfo fl">[\s\S]+?<\/div>/g;
 const tagImgG = /<img src="([\s\S]+?)" width/;
@@ -12,6 +13,14 @@ const text = ['的', '一', '国', '在', '人', '了', '有', '中', '是', '�
 function wait(ms=3000){
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+async function convert(src_path, dst_path) {
+  const builder = tfrecord.createBuilder();
+  const example = builder.releaseExample();
+  const writer = await tfrecord.createWriter(dst_path);
+  await writer.writeExample(example);
+  await writer.close();
+};
 
 async function download(name, ziti, label) {
   const dir = 'download/' + ziti + '_' + label;
